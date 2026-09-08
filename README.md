@@ -20,6 +20,8 @@
 
 Este projeto demonstra a construção de uma arquitetura cliente-servidor completa em JavaScript. O backend, construído com Node.js e Express, expõe uma **API RESTful** para operações de CRUD (Create, Read, Update, Delete) e serve os arquivos estáticos do frontend de forma integrada. A interface de usuário, desenvolvida em Vanilla JS, consome essa API assincronamente através da `Fetch API` nativa.
 
+Link do Render: https://api-restful-com-node-js-u6uf.onrender.com
+
 ## 🚀 Tecnologias e Ferramentas
 
 ### Backend (Servidor & API)
