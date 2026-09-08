@@ -1,8 +1,14 @@
 const express = require("express");
+const path = require("path");
+
 const app = express();
+const PORT = process.env.PORT || 3000;
 
+// Middlewares para parsing de JSON e arquivos estáticos da pasta 'public'
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
+// Coleção inicial em memória (5 produtos)
 const produtos = [
   {
     id: 1,
@@ -146,33 +152,67 @@ const produtos = [
   },
 ];
 
-app.get("/", (req, res) => {
-  res.send("API de Produtos no ar. Use /produtos para consultar o catálogo.");
-});
+let idCounter = 6;
 
-// GET /produtos - lista todos os produtos
+// ENDPOINT DA API REST
+
+// 1. GET /produtos - Listar todos os produtos
 app.get("/produtos", (req, res) => {
-  res.json(produtos);
+  res.status(200).json(produtos);
 });
 
-// GET /produtos/:id - consulta um produto específico
+// 2. GET /produtos/:id - Consultar produto por ID
 app.get("/produtos/:id", (req, res) => {
   const id = parseInt(req.params.id);
-
-  const produto = produtos.find((prod) => prod.id === id);
-  if (produto) {
-    res.status(200).json(produto);
-  } else {
-    res.status(404).json({ erro: "Produto não encontrado" });
+  const produto = produtos.find((p) => p.id === id);
+  if (!produto) {
+    return res.status(404).json({ mensagem: "Produto não encontrado." });
   }
+  res.status(200).json(produto);
 });
 
-// POST /produtos - cadastra um novo produto
+// 3. POST /produtos - Cadastrar novo produto
 app.post("/produtos", (req, res) => {
-  const { id, descricao, preco, categoria, estoque } = req.body;
+  const { descricao, preco, categoria, estoque } = req.body;
 
   if (
-    id === undefined ||
+    !descricao ||
+    preco === undefined ||
+    !categoria ||
+    estoque === undefined
+  ) {
+    return res.status(400).json({
+      mensagem:
+        "Todos os campos (descricao, preco, categoria, estoque) são obrigatórios.",
+    });
+  }
+
+  const novoProduto = {
+    id: idCounter++,
+    descricao: String(descricao).trim(),
+    preco: parseFloat(preco),
+    categoria: String(categoria).trim(),
+    estoque: parseInt(estoque),
+  };
+
+  produtos.push(novoProduto);
+  res.status(201).json(novoProduto);
+});
+
+// 4. PUT /produtos/:id - Alterar produto existente
+app.put("/produtos/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = produtos.findIndex((p) => p.id === id);
+
+  if (index === -1) {
+    return res
+      .status(404)
+      .json({ mensagem: "Produto não encontrado para alteração." });
+  }
+
+  const { descricao, preco, categoria, estoque } = req.body;
+
+  if (
     !descricao ||
     preco === undefined ||
     !categoria ||
@@ -180,71 +220,41 @@ app.post("/produtos", (req, res) => {
   ) {
     return res
       .status(400)
-      .json({ erro: "Preencha os dados de forma adequada" });
+      .json({ mensagem: "Todos os campos são obrigatórios para atualização." });
   }
 
-  const idNumerico = parseInt(id);
-  const jaExiste = produtos.some((prod) => prod.id === idNumerico);
-  if (jaExiste) {
-    return res.status(400).json({ erro: "Já existe um produto com esse id" });
-  }
-
-  const novoProduto = {
-    id: idNumerico,
-    descricao,
+  produtos[index] = {
+    id: id,
+    descricao: String(descricao).trim(),
     preco: parseFloat(preco),
-    categoria,
+    categoria: String(categoria).trim(),
     estoque: parseInt(estoque),
   };
-  produtos.push(novoProduto);
-  return res.status(201).json(novoProduto);
+
+  res.status(200).json(produtos[index]);
 });
 
-// PUT /produtos/:id - altera um produto existente
-app.put("/produtos/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const { descricao, preco, categoria, estoque } = req.body;
-
-  const index = produtos.findIndex((prod) => prod.id === id);
-  if (index === -1) {
-    return res.status(404).json({ erro: "Produto não encontrado" });
-  }
-
-  if (
-    !descricao ||
-    preco === undefined ||
-    !categoria ||
-    estoque === undefined
-  ) {
-    return res.status(400).json({ erro: "Preencha os dados de forma correta" });
-  }
-
-  const produtoAtualizado = {
-    id,
-    descricao,
-    preco: parseFloat(preco),
-    categoria,
-    estoque: parseInt(estoque),
-  };
-  produtos[index] = produtoAtualizado;
-
-  return res.status(200).json(produtoAtualizado);
-});
-
-// DELETE /produtos/:id - exclui um produto existente
+// 5. DELETE /produtos/:id - Excluir produto
 app.delete("/produtos/:id", (req, res) => {
   const id = parseInt(req.params.id);
+  const index = produtos.findIndex((p) => p.id === id);
 
-  const index = produtos.findIndex((prod) => prod.id === id);
   if (index === -1) {
-    return res.status(404).json({ erro: "Produto não encontrado" });
+    return res
+      .status(404)
+      .json({ mensagem: "Produto não encontrado para exclusão." });
   }
 
   produtos.splice(index, 1);
-  return res.status(200).json({ mensagem: "Produto excluído com sucesso" });
+  res.status(204).send();
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server rodando na porta ${port}`);
+// Rota fallback: entrega o index.html do frontend para qualquer outra requisição GET não-API
+app.get("/{*splat}", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Inicialização do servidor
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
